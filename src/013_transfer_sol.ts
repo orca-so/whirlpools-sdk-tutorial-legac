@@ -16,13 +16,14 @@ async function main() {
     console.log("signer:", signer.address);
 
     const destAddress = address("vQW71yo6X1FjTwt9gaWtHYeoGMu7W9ehSmNiib7oW5G");
-    const amount = BigInt(1_000_000);
+    const amount = BigInt(100_000);
 
     const instruction = getTransferSolInstruction({
         amount: lamports(amount),
         source: signer,
         destination: destAddress
     });
+    console.log("instruction:", instruction);
 
     const txHash = await buildAndSendTransaction([instruction], signer);
     console.log("txHash:", txHash);

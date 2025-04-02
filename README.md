@@ -23,3 +23,7 @@ ts-node src/011_get_sol_balance.ts
 
 @orca-so/whirlpool-sdk is a SDK for building a whirlpool, interacting with @solana/web3.js.
 @orca-so/whirlpools is same SDK but with @solana/kit, the next version of @solana/web3.js.
+
+## What are key features of @orca-so/whirlpools?
+
+TBD
