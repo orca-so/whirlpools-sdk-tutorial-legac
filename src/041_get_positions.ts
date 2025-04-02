@@ -11,7 +11,7 @@ async function main() {
     console.log('wallet address:', signer.address);
 
     const positions = await fetchPositionsForOwner(rpc, signer.address);
-    console.log("positions", positions);
+    console.log("positions:", positions);
 }
 
-main();
+main().catch(console.error);

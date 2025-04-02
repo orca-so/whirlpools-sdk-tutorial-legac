@@ -1,4 +1,5 @@
 import { createKeyPairFromBytes, createSolanaRpc, getAddressFromPublicKey } from "@solana/kit";
+
 import secret from "../wallet.json";
 import dotenv from "dotenv";
 

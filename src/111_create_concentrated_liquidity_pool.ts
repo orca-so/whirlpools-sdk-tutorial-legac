@@ -1,11 +1,11 @@
-import { createKeyPairSignerFromBytes, createSolanaRpc } from "@solana/kit";
+import { Address, address, createKeyPairSignerFromBytes, createSolanaRpc, generateKeyPairSigner, KeyPairSigner, Rpc, SolanaRpcApi } from "@solana/kit";
 import secret from "../wallet.json";
-import { createMint } from "./utils/spl_token_utils";
-import { PoolUtil } from "@orca-so/whirlpools-sdk";
-import { fetchMint } from "@solana-program/token";
+import { fetchMint, getInitializeMint2Instruction } from "@solana-program/token";
 import { createConcentratedLiquidityPool } from "@orca-so/whirlpools";
 import { fetchWhirlpool } from "@orca-so/whirlpools-client";
 import { sqrtPriceToPrice } from "@orca-so/whirlpools-core";
+import { getCreateAccountInstruction } from "@solana-program/system";
+import { buildAndSendTransaction } from "@orca-so/tx-sender";
 
 async function main() {
     try {
@@ -14,30 +14,32 @@ async function main() {
         console.log('wallet address:', signer.address);
 
         const newTokenPubkeys = await Promise.all([
-            createMint(rpc, signer, signer.address, signer.address, 9),
-            createMint(rpc, signer, signer.address, signer.address, 6),
-        ]);
+            createNewTokenMint(rpc, signer, signer.address, signer.address, 9),
+            createNewTokenMint(rpc, signer, signer.address, signer.address, 6),
+        ]);  
 
-        const [tokenAddressA, tokenAddressB] = PoolUtil.orderMints(newTokenPubkeys[0], newTokenPubkeys[1]);
+        const [tokenAddressA, tokenAddressB] = newTokenPubkeys.sort((addr1, addr2) => addr1.localeCompare(addr2));
 
         const tokenA = await fetchMint(rpc, tokenAddressA);
         const tokenB = await fetchMint(rpc, tokenAddressB);
         const decimalA = tokenA.data.decimals;
         const decimalB = tokenB.data.decimals;
-        console.log("tokenA:", tokenAddressA.toBase58(), "decimalA:", decimalA);
-        console.log("tokenB:", tokenAddressB.toBase58(), "decimalB:", decimalB);
+        console.log("tokenA:", tokenAddressA, "decimalA:", decimalA);
+        console.log("tokenB:", tokenAddressB, "decimalB:", decimalB);
 
         const tickSpacing = 64;
         const initialPrice = 0.01;
 
-        const { instructions, poolAddress, callback } = await createConcentratedLiquidityPool(
+        const { instructions, poolAddress, callback: executeCreateConcentratedLiquidityPool } = await createConcentratedLiquidityPool(
             tokenAddressA, 
             tokenAddressB, 
             tickSpacing,
             initialPrice
         );
+        console.log("instructions:", instructions);
 
-        const createPoolTxId = await callback();
+        const signature = await executeCreateConcentratedLiquidityPool();
+        console.log("createPoolTxId:", signature);
 
         const pool = await fetchWhirlpool(rpc, poolAddress);
         console.log("pool:", pool);
@@ -46,7 +48,6 @@ async function main() {
         const poolInitialPrice = sqrtPriceToPrice(poolData.sqrtPrice, decimalA, decimalB);
         const poolInitialTick = poolData.tickCurrentIndex;
 
-        console.log("createPoolTxId:", createPoolTxId);
         console.log(
             "poolAddress:", poolAddress.toString(),
             "\n  tokenA:", poolData.tokenMintA.toString(),
@@ -58,6 +59,38 @@ async function main() {
     } catch (e) {
         console.error("error", e);
     }
+}
+
+async function createNewTokenMint(
+    rpc: Rpc<SolanaRpcApi>, 
+    signer: KeyPairSigner, 
+    mintAuthority: Address, 
+    freezeAuthority: Address,
+    decimals: number) {
+    const TOKEN_PROGRAM_ID = address("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
+    const keypair = await generateKeyPairSigner();
+    const mintLen = 82;
+    const lamports = await rpc.getMinimumBalanceForRentExemption(BigInt(mintLen)).send();
+
+    const createAccountInstruction = getCreateAccountInstruction({
+        payer: signer,
+        newAccount: keypair,
+        lamports,
+        space: mintLen,
+        programAddress: keypair.address,
+    });
+
+    const initializeMintInstruction = getInitializeMint2Instruction({
+        mint: keypair.address,
+        decimals,
+        mintAuthority,
+        freezeAuthority,
+    });
+
+    const txHash = await buildAndSendTransaction([createAccountInstruction, initializeMintInstruction], signer);
+    console.log("createNewTokenMint txHash:", txHash);
+
+    return keypair.address;
 }
 
 main();

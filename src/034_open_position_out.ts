@@ -1,92 +1,87 @@
-import { openPositionInstructions, setJitoTipSetting, setPriorityFeeSetting, setRpc, setWhirlpoolsConfig } from "@orca-so/whirlpools";
+import { increasePosLiquidity, openPositionInstructions, setJitoTipSetting, setPayerFromBytes, setPriorityFeeSetting, setRpc, setWhirlpoolsConfig } from "@orca-so/whirlpools";
 import { fetchWhirlpool, getWhirlpoolAddress } from "@orca-so/whirlpools-client";
-import { increaseLiquidityQuoteA, priceToTickIndex, sqrtPriceToPrice, tickIndexToPrice } from "@orca-so/whirlpools-core";
-import { address, createKeyPairSignerFromBytes, createSolanaRpc } from "@solana/kit";
-import { buildAndSendTransaction } from "@orca-so/tx-sender";
+import { priceToTickIndex, sqrtPriceToPrice, tickIndexToPrice } from "@orca-so/whirlpools-core";
+import { address, createSolanaRpc } from "@solana/kit";
+
 import dotenv from "dotenv";
 import secret from "../wallet.json";
 
 dotenv.config();
 
 async function main() {
-    try {
-        const rpc = createSolanaRpc(process.env.RPC_ENDPOINT_URL);
-        const signer = await createKeyPairSignerFromBytes(new Uint8Array(secret));
-        await setWhirlpoolsConfig("solanaDevnet");
+    const rpc = createSolanaRpc(process.env.RPC_ENDPOINT_URL);
+    await setRpc(process.env.RPC_ENDPOINT_URL);
+    await setWhirlpoolsConfig("solanaDevnet");
+    const signer = await setPayerFromBytes(new Uint8Array(secret));
+    await setRpc(process.env.RPC_ENDPOINT_URL);
+    setPriorityFeeSetting({
+        type: "dynamic",
+        maxCapLamports: BigInt(5_000_000), // Max priority fee = 0.005 SOL
+    });
+    setJitoTipSetting({
+        type: "dynamic",
+    });
+
+    console.log('signer:', signer.address);
+
+    const devSAMO = {mint: address("Jd4M8bfJG3sAkd82RsGWyEXoaBXQP7njFzBwEaCTuDa"), decimals: 9};
+    const devUSDC = {mint: address("BRjpCHtyQLNCo8gqRUr8jtdAj5AjPYQaoqbvcZiHok1k"), decimals: 6};
+    const DEVNET_WHIRLPOOLS_CONFIG = address("FcrweFY1G9HJAHG5inkGB6pKg1HZ6x9UC2WioAfWrGkR");
+    const tickSpacing = 64;
+    const whirlpoolConfigAddress = address(DEVNET_WHIRLPOOLS_CONFIG.toString());
+    const whirlpoolPda = await getWhirlpoolAddress(
+        whirlpoolConfigAddress,
+        devSAMO.mint,
+        devUSDC.mint,
+        tickSpacing,
+    );
+    console.log("whirlpoolPda:", whirlpoolPda);
+
+    const whirlpool = await fetchWhirlpool(rpc, whirlpoolPda[0]);
+    console.log("whirlpool:", whirlpool);
+
+    const sqrtPrice_x64 = sqrtPriceToPrice(whirlpool.data.sqrtPrice, devSAMO.decimals, devUSDC.decimals);
+    console.log("sqrtPrice_x64:", sqrtPrice_x64);
+
+    const devSamoAmount = BigInt(10_000_000_000);
+
+    const lowerTickIndex = priceToTickIndex(0.03, devSAMO.decimals, devUSDC.decimals);
+    const upperTickIndex = priceToTickIndex(0.04, devSAMO.decimals, devUSDC.decimals);
+    console.log('lowerTickIndex:', lowerTickIndex);
+    console.log('upperTickIndex:', upperTickIndex);
+
+    const lowerPrice = tickIndexToPrice(lowerTickIndex, devSAMO.decimals, devUSDC.decimals);
+    const upperPrice = tickIndexToPrice(upperTickIndex, devSAMO.decimals, devUSDC.decimals);
+    console.log('lowerPrice:', lowerPrice);
+    console.log('upperPrice:', upperPrice);
     
-        const devSAMO = {mint: address("Jd4M8bfJG3sAkd82RsGWyEXoaBXQP7njFzBwEaCTuDa"), decimals: 9};
-        const devUSDC = {mint: address("BRjpCHtyQLNCo8gqRUr8jtdAj5AjPYQaoqbvcZiHok1k"), decimals: 6};
-        const DEVNET_WHIRLPOOLS_CONFIG = address("FcrweFY1G9HJAHG5inkGB6pKg1HZ6x9UC2WioAfWrGkR");
-        const tickSpacing = 64;
-        const whirlpoolConfigAddress = address(DEVNET_WHIRLPOOLS_CONFIG.toString());
-        const whirlpoolPda = await getWhirlpoolAddress(
-            whirlpoolConfigAddress,
-            devSAMO.mint,
-            devUSDC.mint,
-            tickSpacing,
-        );
-        console.log("whirlpoolPda", whirlpoolPda);
-    
-        const whirlpool = await fetchWhirlpool(rpc, whirlpoolPda[0]);
-        console.log("whirlpool", whirlpool);
-    
-        const sqrtPrice_x64 = sqrtPriceToPrice(whirlpool.data.sqrtPrice, devSAMO.decimals, devUSDC.decimals);
-        console.log("sqrtPrice_x64", sqrtPrice_x64);
-    
-        const devSamoAmount = BigInt(10_000_000_000);
-    
-        const lowerTickIndex = priceToTickIndex(0.03, devSAMO.decimals, devUSDC.decimals);
-        const upperTickIndex = priceToTickIndex(0.04, devSAMO.decimals, devUSDC.decimals);
-        console.log('lowerTickIndex', lowerTickIndex);
-        console.log('upperTickIndex', upperTickIndex);
-    
-        const lowerPrice = tickIndexToPrice(lowerTickIndex, devSAMO.decimals, devUSDC.decimals);
-        const upperPrice = tickIndexToPrice(upperTickIndex, devSAMO.decimals, devUSDC.decimals);
-        console.log('lowerPrice', lowerPrice);
-        console.log('upperPrice', upperPrice);
-    
-        const quote = increaseLiquidityQuoteA(
-            devSamoAmount,
-            0.01,
-            whirlpool.data.sqrtPrice,
-            lowerTickIndex,
-            upperTickIndex,
-        );
-        console.log("quote", quote);
-        console.log("devSAMO max input", Number(quote.tokenMaxA) / 10 ** devSAMO.decimals);
-        console.log("devUSDC max input", Number(quote.tokenMaxB) / 10 ** devUSDC.decimals);
-        
-        const openPosition = await openPositionInstructions(
-            rpc, 
-            whirlpool.address, 
-            {
-                tokenA: quote.tokenMaxA,
-                tokenB: quote.tokenMaxB,
-            }, 
-            lowerPrice, 
-            upperPrice, 
-            0.01, 
-            signer
-        );
-    
-        console.log("openPositionInbstructions", openPosition);
-    
-        await setRpc(process.env.RPC_ENDPOINT_URL);
-        setPriorityFeeSetting({
-            type: "dynamic",
-            maxCapLamports: BigInt(5_000_000), // Max priority fee = 0.005 SOL
-        });
-        setJitoTipSetting({
-            type: "dynamic",
-        });
-        const txHash = await buildAndSendTransaction(
-            openPosition.instructions,
-            signer,
-        );
-        console.log('txHash:', txHash);
-    } catch (e) {
-        console.error('error:', e);
-    }
+    const { quote, instructions, positionMint } = await openPositionInstructions(
+        rpc, 
+        whirlpool.address, 
+        {
+            tokenA: devSamoAmount,
+        }, 
+        lowerPrice, 
+        upperPrice, 
+        0.01, 
+        signer
+    );
+
+    console.log("quote:", quote);
+    console.log("openPositionInbstructions:", instructions);
+    console.log("positionMint:", positionMint);
+
+    const { instructions: increaseLiquidityInstructions, callback: executeIncreaseLiquidity } = await increasePosLiquidity(
+        positionMint, 
+        {
+            tokenA: quote.tokenMaxA,
+        }, 
+        0.01
+    );
+    console.log("increaseLiquidityInstructions:", increaseLiquidityInstructions);
+
+    const txHash = await executeIncreaseLiquidity();
+    console.log('txHash:', txHash);
 }
 
-main();
+main().catch(e => console.error("error:", e));

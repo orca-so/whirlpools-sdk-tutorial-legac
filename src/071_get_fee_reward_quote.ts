@@ -1,5 +1,6 @@
 import { address, createKeyPairSignerFromBytes, createSolanaRpc } from "@solana/kit";
 import { fetchPosition } from "@orca-so/whirlpools-client";
+
 import dotenv from "dotenv";
 import secret from "../wallet.json";
 
@@ -16,4 +17,4 @@ async function main() {
     console.log('rewards', position.data.rewardInfos);
 }
 
-main();
+main().catch(e => console.error("error:", e));

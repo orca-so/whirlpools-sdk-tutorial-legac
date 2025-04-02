@@ -1,19 +1,28 @@
-import { address, createKeyPairSignerFromBytes, createSolanaRpc } from "@solana/kit";
-import { fetchPositionsForOwner, increaseLiquidityInstructions, setJitoTipSetting, setPriorityFeeSetting, setRpc } from "@orca-so/whirlpools";
+import { address, createSolanaRpc } from "@solana/kit";
+import { fetchPositionsForOwner, increasePosLiquidity, setJitoTipSetting, setPayerFromBytes, setPriorityFeeSetting, setRpc, setWhirlpoolsConfig } from "@orca-so/whirlpools";
 import { increaseLiquidityQuoteB } from "@orca-so/whirlpools-core";
 import { fetchWhirlpool, getWhirlpoolAddress, Position } from "@orca-so/whirlpools-client";
 
 import dotenv from "dotenv";
 import secret from "../wallet.json";
-import { buildAndSendTransaction } from "@orca-so/tx-sender";
 
 dotenv.config();
 
 async function main() {
     try {
         const rpc = createSolanaRpc(process.env.RPC_ENDPOINT_URL);
-        const signer = await createKeyPairSignerFromBytes(new Uint8Array(secret));
-        console.log('wallet address:', signer.address);
+        const signer = await setPayerFromBytes(new Uint8Array(secret));
+        await setRpc(process.env.RPC_ENDPOINT_URL);
+        await setWhirlpoolsConfig("solanaDevnet");
+        setPriorityFeeSetting({
+            type: "dynamic",
+            maxCapLamports: BigInt(5_000_000), // Max priority fee = 0.005 SOL
+        });
+        setJitoTipSetting({
+            type: "dynamic",
+        });
+
+        console.log('signer:', signer.address);
     
         const devSAMO = {mint: address("Jd4M8bfJG3sAkd82RsGWyEXoaBXQP7njFzBwEaCTuDa"), decimals: 9};
         const devUSDC = {mint: address("BRjpCHtyQLNCo8gqRUr8jtdAj5AjPYQaoqbvcZiHok1k"), decimals: 6};
@@ -39,42 +48,29 @@ async function main() {
         if (positions.length > 0) {
             // Only increase liquidity for the first position
             const position: Position = positions[0].data as Position;
-            const quote = increaseLiquidityQuoteB(
+            const calculatedQuote = increaseLiquidityQuoteB(
                 devUsdcAmount,
                 slippage,
                 whirlpool.data.sqrtPrice,
                 position.tickLowerIndex,
                 position.tickUpperIndex
             );
-            console.log("quote:", quote);
-            console.log("devSAMO max input:", Number(quote.tokenMaxA) / 10 ** devSAMO.decimals);
-            console.log("devUSDC max input:", Number(quote.tokenMaxB) / 10 ** devUSDC.decimals);
-    
-            const increaseLiquidity = await increaseLiquidityInstructions(
-                rpc,
-                position.positionMint,
+            console.log("quote:", calculatedQuote);
+            console.log("devSAMO max input:", Number(calculatedQuote.tokenMaxA) / 10 ** devSAMO.decimals);
+            console.log("devUSDC max input:", Number(calculatedQuote.tokenMaxB) / 10 ** devUSDC.decimals);
+ 
+            const { quote, instructions, callback: executeIncreaseLiquidity } = await increasePosLiquidity(
+                position.positionMint, 
                 {
-                    tokenA: quote.tokenMaxA,
-                    tokenB: quote.tokenMaxB,
-                },
-                slippage,
-                signer
+                    tokenB: calculatedQuote.tokenMaxB,
+                }, 
+                0.01
             );
-            console.log("instructions", increaseLiquidity.instructions);
-    
-            await setRpc(process.env.RPC_ENDPOINT_URL);
-            setPriorityFeeSetting({
-                type: "dynamic",
-                maxCapLamports: BigInt(5_000_000), // Max priority fee = 0.005 SOL
-            });
-            setJitoTipSetting({
-                type: "dynamic",
-            });
-            const txHash = await buildAndSendTransaction(
-                increaseLiquidity.instructions,
-                signer,
-            );
-            console.log('txHash:', txHash);
+            console.log("quote:", quote);
+            console.log("increaseLiquidityInstructions:", instructions);
+
+            const signature = await executeIncreaseLiquidity();
+            console.log('signature:', signature);
         } else {
             console.log("No position in devSAMO/devUSDC pool");
         }

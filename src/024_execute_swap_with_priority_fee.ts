@@ -1,23 +1,18 @@
-import { setPriorityFeeSetting, setWhirlpoolsConfig, swapInstructions } from "@orca-so/whirlpools";
-import { address, appendTransactionMessageInstructions, createKeyPairSignerFromBytes, createSolanaRpc, createSolanaRpcSubscriptions, createTransactionMessage, getSignatureFromTransaction, isSolanaError, pipe, sendAndConfirmTransactionFactory, setTransactionMessageFeePayer, setTransactionMessageLifetimeUsingBlockhash, signTransactionMessageWithSigners } from "@solana/kit";
-import { getSystemErrorMessage, isSystemError } from "@solana-program/system";
+import { setPayerFromBytes, setPriorityFeeSetting, setRpc, setWhirlpoolsConfig, swap } from "@orca-so/whirlpools";
+import { address } from "@solana/kit";
 import { getWhirlpoolAddress } from "@orca-so/whirlpools-client";
-import secret from "../wallet.json";
+
 import dotenv from "dotenv";
+import secret from "../wallet.json";
 
 dotenv.config();
 
 async function main() {
-    const rpc = createSolanaRpc(process.env.RPC_ENDPOINT_URL);
-    const rpcSubscriptions = createSolanaRpcSubscriptions(process.env.WS_ENDPOINT_URL);
-    const sendAndConfirmTransaction = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions });
-
-    const signer = await createKeyPairSignerFromBytes(new Uint8Array(secret));
+    await setRpc(process.env.RPC_ENDPOINT_URL);
+    const signer = await setPayerFromBytes(new Uint8Array(secret));
     await setWhirlpoolsConfig("solanaDevnet");
-    setPriorityFeeSetting({
-        type: "dynamic",
-        maxCapLamports: BigInt(4_000_000), // 0.004 SOL
-    });
+
+    console.log("signer:", signer.address);
 
     const devUSDC = {mint: address("BRjpCHtyQLNCo8gqRUr8jtdAj5AjPYQaoqbvcZiHok1k"), decimals: 6};
     const devSAMO = {mint: address("Jd4M8bfJG3sAkd82RsGWyEXoaBXQP7njFzBwEaCTuDa"), decimals: 9};
@@ -31,48 +26,26 @@ async function main() {
         devUSDC.mint,
         tickSpacing,
     );
-    console.log("whirlpoolPda", whirlpoolPda);
+    console.log("whirlpoolPda:", whirlpoolPda);
 
-    const { instructions, quote } = await swapInstructions(
-        rpc,
+    // NOTE: Set priority fee, maximum prioirty fee is 0.005 SOL
+    setPriorityFeeSetting({
+        type: "dynamic",
+        maxCapLamports: BigInt(5_000_000), // Max priority fee = 0.005 SOL
+    });
+    const { instructions, quote, callback: executeSwap } = await swap(
         {
-            inputAmount: BigInt(1_000_000),
             mint: devUSDC.mint,
+            inputAmount: BigInt(100_000),   // swap 0.1 devUSDC to devSAMO
         },
         whirlpoolPda[0],
         0.01,
-        signer,
     );
     console.log("instructions:", instructions);
     console.log("quote:", quote);
 
-    const latestBlockHash = await rpc.getLatestBlockhash().send();
-
-    const transactionMessage = pipe(
-        createTransactionMessage({ version: 0 }),
-        tx => setTransactionMessageFeePayer(signer.address, tx),
-        tx => setTransactionMessageLifetimeUsingBlockhash(latestBlockHash.value, tx),
-        tx => appendTransactionMessageInstructions(instructions, tx),
-    );
-    const signedTransaction = await signTransactionMessageWithSigners(transactionMessage);
-    console.log("signedTransaction:", signedTransaction);
-    console.log("signatures:", getSignatureFromTransaction(signedTransaction));
-
-    try {
-        await sendAndConfirmTransaction(signedTransaction, { commitment: "confirmed" });
-        console.log('Transfer confirmed')
-    } catch (e) {
-        if (isSolanaError(e)) {
-            const preflightErrorContext = e.context;
-            const preflightErrorMessage = e.message;
-            const errorDetailMessage = isSystemError(e.cause, transactionMessage)
-                ? getSystemErrorMessage(e.cause.context.code)
-                : e.message;
-            console.log(preflightErrorContext, `${preflightErrorMessage}: ${errorDetailMessage}`);
-        } else {
-            throw e;
-        }
-    }
+    const swapSignature = await executeSwap();
+    console.log("swapSignature:", swapSignature);
 }
 
-main();
+main().catch(e => console.error("error:", e));

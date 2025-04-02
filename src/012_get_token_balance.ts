@@ -1,11 +1,9 @@
-import { address, createKeyPairFromBytes, createSolanaRpc, Decoder, fixDecoderSize, getAddressFromPublicKey, getU64Codec } from "@solana/kit";
+import { address, createKeyPairFromBytes, createSolanaRpc, getAddressFromPublicKey } from "@solana/kit";
 import secret from "../wallet.json";
 import dotenv from "dotenv";
-import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { unpackSplAccount } from "./utils/spl_token_utils";
 import { DecimalUtil } from "@orca-so/common-sdk";
 import BN from "bn.js";
-import { decodeToken, getTokenDecoder } from "@solana-program/token";
+import { fetchToken } from "@solana-program/token";
 
 dotenv.config();
 
@@ -19,25 +17,25 @@ async function main() {
         "H8UekPGwePSmQ3ttuYGPU1szyFfjZR4N53rymSFwpLPm": {name: "devUSDT", decimals: 6},
         "Jd4M8bfJG3sAkd82RsGWyEXoaBXQP7njFzBwEaCTuDa":  {name: "devSAMO", decimals: 9},
         "Afn8YB1p4NsoZeS5XJBZ18LTfEy5NFPwN46wapZcBQr6": {name: "devTMAC", decimals: 6},
-    }
+    };
+    const TOKEN_PROGRAM_ID = address("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 
     const accounts = await rpc.getTokenAccountsByOwner(walletAddress, 
-        { programId: address(TOKEN_PROGRAM_ID.toString()) }, 
+        { programId: TOKEN_PROGRAM_ID }, 
         { commitment: "confirmed", encoding: "base64" }).send();
     console.log("getTokenAccountsByOwner:", accounts);
 
     for (let i = 0; i < accounts.value.length; i++) {
         const value = accounts.value[i];
 
-        const decoder = getTokenDecoder();
-        const parsedTokenData = decoder.decode(Buffer.from(value.account.data[0], "base64"));
-        console.log("tokenData:", parsedTokenData);
+        const tokenData = await fetchToken(rpc, value.pubkey);
+        console.log("tokenData:", tokenData);
 
-        const mint = parsedTokenData.mint;
+        const mint = tokenData.data.mint;
         const tokenDef = tokenDefs[mint];
         if (tokenDef === undefined) continue;
 
-        const amount = parsedTokenData.amount;
+        const amount = tokenData.data.amount;
         const uiAmount = DecimalUtil.fromBN(new BN(amount.toString()), tokenDef.decimals);
 
         console.log(
