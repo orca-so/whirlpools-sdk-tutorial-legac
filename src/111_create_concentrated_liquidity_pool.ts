@@ -1,4 +1,4 @@
-import { Address, address, createKeyPairSignerFromBytes, createSolanaRpc, generateKeyPairSigner, KeyPairSigner, Rpc, SolanaRpcApi } from "@solana/kit";
+import { Address, address, createKeyPairSignerFromBytes, createSolanaRpc, generateKeyPairSigner, getAddressEncoder, KeyPairSigner, Rpc, SolanaRpcApi } from "@solana/kit";
 import secret from "../wallet.json";
 import { fetchMint, getInitializeMint2Instruction } from "@solana-program/token";
 import { createConcentratedLiquidityPool } from "@orca-so/whirlpools";
@@ -6,6 +6,14 @@ import { fetchWhirlpool } from "@orca-so/whirlpools-client";
 import { sqrtPriceToPrice } from "@orca-so/whirlpools-core";
 import { getCreateAccountInstruction } from "@solana-program/system";
 import { buildAndSendTransaction } from "@orca-so/tx-sender";
+
+// This function is implemented in token.ts in the @orca/whirlpools package
+function orderMints(mintA: Address, mintB: Address) {
+    const encoder = getAddressEncoder();
+    const mint1Bytes = new Uint8Array(encoder.encode(mintA));
+    const mint2Bytes = new Uint8Array(encoder.encode(mintB));
+    return Buffer.compare(mint1Bytes, mint2Bytes) < 0 ? [mintA, mintB] : [mintB, mintA];
+}
 
 async function main() {
     try {
@@ -16,9 +24,9 @@ async function main() {
         const newTokenPubkeys = await Promise.all([
             createNewTokenMint(rpc, signer, signer.address, signer.address, 9),
             createNewTokenMint(rpc, signer, signer.address, signer.address, 6),
-        ]);  
-
-        const [tokenAddressA, tokenAddressB] = newTokenPubkeys.sort((addr1, addr2) => addr1.localeCompare(addr2));
+        ]);
+        
+        const [tokenAddressA, tokenAddressB] = orderMints(newTokenPubkeys[0], newTokenPubkeys[1]);
 
         const tokenA = await fetchMint(rpc, tokenAddressA);
         const tokenB = await fetchMint(rpc, tokenAddressB);

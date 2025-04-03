@@ -29,6 +29,7 @@ async function main() {
     const DEVNET_WHIRLPOOLS_CONFIG = address("FcrweFY1G9HJAHG5inkGB6pKg1HZ6x9UC2WioAfWrGkR");
     const tickSpacing = 64;
     const whirlpoolConfigAddress = address(DEVNET_WHIRLPOOLS_CONFIG.toString());
+
     const whirlpoolPda = await getWhirlpoolAddress(
         whirlpoolConfigAddress,
         devSAMO.mint,

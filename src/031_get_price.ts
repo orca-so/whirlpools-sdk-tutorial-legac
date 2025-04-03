@@ -8,8 +8,8 @@ import dotenv from "dotenv";
 dotenv.config();
 
 async function main() {
-    const rpc = createSolanaRpc(process.env.RPC_ENDPOINT_URL);
-    await setWhirlpoolsConfig("solanaDevnet");
+    const rpc = createSolanaRpc("https://mainnet.helius-rpc.com/?api-key=64014c2c-cf7c-4377-803c-a1db86677744");
+    await setWhirlpoolsConfig("solanaMainnet");
 
     const devSAMO = {mint: address("Jd4M8bfJG3sAkd82RsGWyEXoaBXQP7njFzBwEaCTuDa"), decimals: 9};
     const devUSDC = {mint: address("BRjpCHtyQLNCo8gqRUr8jtdAj5AjPYQaoqbvcZiHok1k"), decimals: 6};
@@ -25,7 +25,7 @@ async function main() {
     );
     console.log("whirlpoolPda:", whirlpoolPda);
 
-    const whirlpool = await fetchWhirlpool(rpc, whirlpoolPda[0]);
+    const whirlpool = await fetchWhirlpool(rpc, address("68soqftZg4HL1Dcis5hMgkLKU9qyC8qbn5JzLhrxhgi9"));
     console.log("whirlpool:", whirlpool);
 
     const sqrtPrice_x64 = sqrtPriceToPrice(whirlpool.data.sqrtPrice, devSAMO.decimals, devUSDC.decimals);
