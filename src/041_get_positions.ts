@@ -1,7 +1,8 @@
-import dotenv from "dotenv";
-import secret from "../wallet.json";
 import { createKeyPairSignerFromBytes, createSolanaRpc } from "@solana/kit";
 import { fetchPositionsForOwner } from "@orca-so/whirlpools";
+
+import dotenv from "dotenv";
+import secret from "../wallet.json";
 
 dotenv.config();
 

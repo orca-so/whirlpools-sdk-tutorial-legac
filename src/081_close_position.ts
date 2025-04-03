@@ -1,8 +1,9 @@
 import { address, createSolanaRpc } from "@solana/kit";
-import secret from "../wallet.json";
-import dotenv from "dotenv";
 import { fetchPosition } from "@orca-so/whirlpools-client";
 import { closePosition, setJitoTipSetting, setPayerFromBytes, setPriorityFeeSetting, setRpc, setWhirlpoolsConfig } from "@orca-so/whirlpools";
+
+import secret from "../wallet.json";
+import dotenv from "dotenv";
 
 dotenv.config();
 

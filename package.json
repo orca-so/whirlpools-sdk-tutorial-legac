@@ -22,12 +22,9 @@
     "@orca-so/whirlpools": "^1.1.0",
     "@orca-so/whirlpools-client": "^1.0.5",
     "@orca-so/whirlpools-core": "^1.0.4",
-    "@orca-so/whirlpools-sdk": "^0.13.19",
     "@solana-program/system": "^0.7.0",
     "@solana-program/token": "^0.5.1",
-    "@solana/compat": "^2.1.0",
     "@solana/kit": "^2.1.0",
-    "@solana/spl-token": "^0.4.13",
     "bs58": "^6.0.0",
     "decimal.js": "^10.5.0",
     "dotenv": "^16.4.7"
