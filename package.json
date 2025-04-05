@@ -17,7 +17,6 @@
   },
   "homepage": "https://github.com/boohyunsik/tour-de-whirlpool-kit#readme",
   "dependencies": {
-    "@orca-so/common-sdk": "^0.6.11",
     "@orca-so/tx-sender": "^1.0.0",
     "@orca-so/whirlpools": "^1.1.0",
     "@orca-so/whirlpools-client": "^1.0.5",

@@ -1,8 +1,6 @@
 import { address, createKeyPairFromBytes, createSolanaRpc, getAddressFromPublicKey } from "@solana/kit";
 import secret from "../wallet.json";
 import dotenv from "dotenv";
-import { DecimalUtil } from "@orca-so/common-sdk";
-import BN from "bn.js";
 import { fetchToken } from "@solana-program/token";
 
 dotenv.config();
@@ -36,13 +34,12 @@ async function main() {
         if (tokenDef === undefined) continue;
 
         const amount = tokenData.data.amount;
-        const uiAmount = DecimalUtil.fromBN(new BN(amount.toString()), tokenDef.decimals);
 
         console.log(
             "TokenAccount:", value.pubkey,
             "\n  mint:", mint,
             "\n  name:", tokenDef.name,
-            "\n  amount:", uiAmount,
+            "\n  amount:", amount,
         );
     }
 }
