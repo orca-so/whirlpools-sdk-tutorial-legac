@@ -1,11 +1,20 @@
-import { address, Address, createKeyPairSignerFromBytes, createSolanaRpc, generateKeyPairSigner, KeyPairSigner, Rpc, SolanaRpcApi } from "@solana/kit";
-import secret from "../wallet.json";
+import { address, Address, createKeyPairSignerFromBytes, createSolanaRpc, generateKeyPairSigner, getAddressEncoder, KeyPairSigner, Rpc, SolanaRpcApi } from "@solana/kit";
 import { fetchMint, getInitializeMint2Instruction } from "@solana-program/token";
 import { createSplashPool } from "@orca-so/whirlpools";
 import { fetchWhirlpool } from "@orca-so/whirlpools-client";
 import { sqrtPriceToPrice } from "@orca-so/whirlpools-core";
 import { getCreateAccountInstruction } from "@solana-program/system";
 import { buildAndSendTransaction } from "@orca-so/tx-sender";
+
+import secret from "../wallet.json";
+
+// This function is implemented in token.ts in the @orca/whirlpools package
+function orderMints(mintA: Address, mintB: Address) {
+    const encoder = getAddressEncoder();
+    const mint1Bytes = new Uint8Array(encoder.encode(mintA));
+    const mint2Bytes = new Uint8Array(encoder.encode(mintB));
+    return Buffer.compare(mint1Bytes, mint2Bytes) < 0 ? [mintA, mintB] : [mintB, mintA];
+}
 
 async function main() {
     try {
@@ -18,14 +27,14 @@ async function main() {
             createNewTokenMint(rpc, signer, signer.address, signer.address, 6),
         ]);
 
-        const [tokenAddressA, tokenAddressB] = PoolUtil.orderMints(newTokenPubkeys[0], newTokenPubkeys[1]);
+        const [tokenAddressA, tokenAddressB] = orderMints(newTokenPubkeys[0], newTokenPubkeys[1]);
 
         const tokenA = await fetchMint(rpc, tokenAddressA);
         const tokenB = await fetchMint(rpc, tokenAddressB);
         const decimalA = tokenA.data.decimals;
         const decimalB = tokenB.data.decimals;
-        console.log("tokenA:", tokenAddressA.toBase58(), "decimalA:", decimalA);
-        console.log("tokenB:", tokenAddressB.toBase58(), "decimalB:", decimalB);
+        console.log("tokenA:", tokenAddressA, "decimalA:", decimalA);
+        console.log("tokenB:", tokenAddressB, "decimalB:", decimalB);
 
         const initialPrice = 0.01;
 
