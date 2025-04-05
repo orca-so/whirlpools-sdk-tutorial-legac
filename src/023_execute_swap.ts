@@ -34,7 +34,7 @@ async function main() {
             inputAmount: BigInt(100_000),   // swap 0.1 devUSDC to devSAMO
         },
         whirlpoolPda[0],
-        0.01,
+        100,  // 100 bps = 1%
     );
     console.log("instructions:", instructions);
     console.log("quote:", quote);

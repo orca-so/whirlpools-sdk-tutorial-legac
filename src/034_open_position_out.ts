@@ -63,7 +63,7 @@ async function main() {
         }, 
         lowerPrice, 
         upperPrice, 
-        0.01, 
+        100,  // 100 bps = 1%
         signer
     );
 
@@ -76,7 +76,7 @@ async function main() {
         {
             tokenA: quote.tokenMaxA,
         }, 
-        0.01
+        100,  // 100 bps = 1%
     );
     console.log("increaseLiquidityInstructions:", increaseLiquidityInstructions);
 

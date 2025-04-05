@@ -48,7 +48,7 @@ async function main() {
         console.log("liquidity:", liquidity);
         console.log("liquidityDelta:", liquidityDelta);
 
-        const slippage = 0.01;
+        const slippage = 100; // 100 bps = 1%
 
         const { quote, instructions, callback: executeDecreaseLiquidity } = await decreaseLiquidity(
             position.positionMint,

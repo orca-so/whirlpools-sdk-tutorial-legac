@@ -27,7 +27,7 @@ async function main() {
     const devUSDC = {mint: address("BRjpCHtyQLNCo8gqRUr8jtdAj5AjPYQaoqbvcZiHok1k"), decimals: 6};
     
     const devUsdcAmount = BigInt(1_000_000); // 1 devUSDC
-    const slippage = 0.01; // 1%
+    const slippage = 100; // 100 bps = 1%
     const tickSpacing = 64;
 
     const DEVNET_WHIRLPOOLS_CONFIG = address("FcrweFY1G9HJAHG5inkGB6pKg1HZ6x9UC2WioAfWrGkR");

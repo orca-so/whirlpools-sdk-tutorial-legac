@@ -1,6 +1,5 @@
 import { address, Address, createKeyPairSignerFromBytes, createSolanaRpc, generateKeyPairSigner, KeyPairSigner, Rpc, SolanaRpcApi } from "@solana/kit";
 import secret from "../wallet.json";
-import { PoolUtil } from "@orca-so/whirlpools-sdk";
 import { fetchMint, getInitializeMint2Instruction } from "@solana-program/token";
 import { createSplashPool } from "@orca-so/whirlpools";
 import { fetchWhirlpool } from "@orca-so/whirlpools-client";

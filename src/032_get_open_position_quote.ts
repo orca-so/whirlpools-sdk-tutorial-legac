@@ -45,7 +45,7 @@ async function main() {
 
     const quote = increaseLiquidityQuoteB(
         devUsdcAmount,
-        0.01,
+        100,  // 100 bps = 1%
         whirlpool.data.sqrtPrice,
         lowerTickIndex,
         upperTickIndex,
