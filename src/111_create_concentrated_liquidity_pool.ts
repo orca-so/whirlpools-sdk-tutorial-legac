@@ -16,57 +16,53 @@ function orderMints(mintA: Address, mintB: Address) {
 }
 
 async function main() {
-    try {
-        const rpc = createSolanaRpc(process.env.RPC_ENDPOINT_URL);
-        const signer = await createKeyPairSignerFromBytes(new Uint8Array(secret));
-        console.log('wallet address:', signer.address);
+    const rpc = createSolanaRpc(process.env.RPC_ENDPOINT_URL);
+    const signer = await createKeyPairSignerFromBytes(new Uint8Array(secret));
+    console.log('wallet address:', signer.address);
 
-        const newTokenPubkeys = await Promise.all([
-            createNewTokenMint(rpc, signer, signer.address, signer.address, 9),
-            createNewTokenMint(rpc, signer, signer.address, signer.address, 6),
-        ]);
-        
-        const [tokenAddressA, tokenAddressB] = orderMints(newTokenPubkeys[0], newTokenPubkeys[1]);
+    const newTokenPubkeys = await Promise.all([
+        createNewTokenMint(rpc, signer, signer.address, signer.address, 9),
+        createNewTokenMint(rpc, signer, signer.address, signer.address, 6),
+    ]);
+    
+    const [tokenAddressA, tokenAddressB] = orderMints(newTokenPubkeys[0], newTokenPubkeys[1]);
 
-        const tokenA = await fetchMint(rpc, tokenAddressA);
-        const tokenB = await fetchMint(rpc, tokenAddressB);
-        const decimalA = tokenA.data.decimals;
-        const decimalB = tokenB.data.decimals;
-        console.log("tokenA:", tokenAddressA, "decimalA:", decimalA);
-        console.log("tokenB:", tokenAddressB, "decimalB:", decimalB);
+    const tokenA = await fetchMint(rpc, tokenAddressA);
+    const tokenB = await fetchMint(rpc, tokenAddressB);
+    const decimalA = tokenA.data.decimals;
+    const decimalB = tokenB.data.decimals;
+    console.log("tokenA:", tokenAddressA, "decimalA:", decimalA);
+    console.log("tokenB:", tokenAddressB, "decimalB:", decimalB);
 
-        const tickSpacing = 64;
-        const initialPrice = 0.01;
+    const tickSpacing = 64;
+    const initialPrice = 0.01;
 
-        const { instructions, poolAddress, callback: executeCreateConcentratedLiquidityPool } = await createConcentratedLiquidityPool(
-            tokenAddressA, 
-            tokenAddressB, 
-            tickSpacing,
-            initialPrice
-        );
-        console.log("instructions:", instructions);
+    const { instructions, poolAddress, callback: executeCreateConcentratedLiquidityPool } = await createConcentratedLiquidityPool(
+        tokenAddressA, 
+        tokenAddressB, 
+        tickSpacing,
+        initialPrice
+    );
+    console.log("instructions:", instructions);
 
-        const signature = await executeCreateConcentratedLiquidityPool();
-        console.log("createPoolTxId:", signature);
+    const signature = await executeCreateConcentratedLiquidityPool();
+    console.log("createPoolTxId:", signature);
 
-        const pool = await fetchWhirlpool(rpc, poolAddress);
-        console.log("pool:", pool);
-        
-        const poolData = pool.data;
-        const poolInitialPrice = sqrtPriceToPrice(poolData.sqrtPrice, decimalA, decimalB);
-        const poolInitialTick = poolData.tickCurrentIndex;
+    const pool = await fetchWhirlpool(rpc, poolAddress);
+    console.log("pool:", pool);
+    
+    const poolData = pool.data;
+    const poolInitialPrice = sqrtPriceToPrice(poolData.sqrtPrice, decimalA, decimalB);
+    const poolInitialTick = poolData.tickCurrentIndex;
 
-        console.log(
-            "poolAddress:", poolAddress.toString(),
-            "\n  tokenA:", poolData.tokenMintA.toString(),
-            "\n  tokenB:", poolData.tokenMintB.toString(),
-            "\n  tickSpacing:", poolData.tickSpacing,
-            "\n  initialPrice:", poolInitialPrice,
-            "\n  initialTick:", poolInitialTick
-        );
-    } catch (e) {
-        console.error("error", e);
-    }
+    console.log(
+        "poolAddress:", poolAddress.toString(),
+        "\n  tokenA:", poolData.tokenMintA.toString(),
+        "\n  tokenB:", poolData.tokenMintB.toString(),
+        "\n  tickSpacing:", poolData.tickSpacing,
+        "\n  initialPrice:", poolInitialPrice,
+        "\n  initialTick:", poolInitialTick
+    );
 }
 
 async function createNewTokenMint(
@@ -101,4 +97,4 @@ async function createNewTokenMint(
     return keypair.address;
 }
 
-main();
+main().catch((e) => console.error("error:", e));
