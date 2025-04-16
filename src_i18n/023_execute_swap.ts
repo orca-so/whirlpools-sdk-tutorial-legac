@@ -57,7 +57,7 @@ async function main() {
     //LANG:JP スワップの見積もり取得(シミュレーション実行)
     //LANG:EN Obtain swap estimation (run simulation)
     //LANG:KR 스왑 예상치 획득(시뮬레이션 실행)
-    const { quote, callback: sendTx } = await swap(
+    const { instructions, quote, callback: sendTx } = await swap(
         //LANG:JP 入力するトークン
         //LANG:EN Input token and amount
         //LANG:KR 입력할 토큰 및 수량

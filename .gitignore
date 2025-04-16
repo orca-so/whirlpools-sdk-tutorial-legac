@@ -7,3 +7,4 @@ yarn.lock
 package-lock.json
 src_localization/wallet.json
 .env
+.vscode

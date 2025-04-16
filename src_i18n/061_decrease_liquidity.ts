@@ -24,7 +24,7 @@ async function main() {
     //LANG:KR 트랜잭션 생성
     //LANG:KR 예치 예상치 가져옴
     const devUsdcAmount = 1_000_000n;
-    const { quote, callback: sendTx } = await decreaseLiquidity(
+    const { instructions, quote, callback: sendTx } = await decreaseLiquidity(
         positionMint,
         {
             tokenB: devUsdcAmount,

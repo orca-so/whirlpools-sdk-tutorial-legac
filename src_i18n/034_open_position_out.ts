@@ -57,7 +57,7 @@ async function main() {
     //LANG:EN Create a transaction
     //LANG:KR 예치 예상치 가져옴
     //LANG:KR 트랜잭션 생성
-    const { quote, positionMint, callback: sendTx } = await openConcentratedPosition(
+    const { instructions, quote, positionMint, callback: sendTx } = await openConcentratedPosition(
         whirlpool.address,
         {
             tokenA: devSamoAmount,
