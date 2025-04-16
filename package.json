@@ -1,0 +1,39 @@
+{
+  "name": "tour-de-whirlpool-kit",
+  "version": "1.0.0",
+  "description": "Tour de Whirlpool for SDK with kit",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/boohyunsik/tour-de-whirlpool-kit.git"
+  },
+  "author": "boosik",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/boohyunsik/tour-de-whirlpool-kit/issues"
+  },
+  "homepage": "https://github.com/boohyunsik/tour-de-whirlpool-kit#readme",
+  "dependencies": {
+    "@orca-so/tx-sender": "^1.0.0",
+    "@orca-so/whirlpools": "^1.1.0",
+    "@orca-so/whirlpools-client": "^1.0.5",
+    "@orca-so/whirlpools-core": "^1.0.4",
+    "@solana-program/system": "^0.7.0",
+    "@solana-program/token": "^0.5.1",
+    "@solana-program/token-2022": "^0.4.0",
+    "@solana/kit": "^2.1.0",
+    "assert": "^2.1.0",
+    "bs58": "^6.0.0",
+    "decimal.js": "^10.5.0",
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "@types/bn.js": "^5.1.6",
+    "@types/dotenv": "^8.2.3",
+    "@types/node": "^22.13.15",
+    "ws": "^8.18.1"
+  }
+}

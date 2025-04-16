@@ -1,0 +1,69 @@
+import { fetchConcentratedLiquidityPool, openConcentratedPosition, setPayerFromBytes, setRpc, setWhirlpoolsConfig } from "@orca-so/whirlpools";
+import { address, createSolanaRpc } from "@solana/kit";
+
+import dotenv from "dotenv";
+import secret from "../../wallet.json";
+import assert from "assert";
+
+dotenv.config();
+
+async function main() {
+    // RPC에 연결을 초기화하고 개인키를 로딩
+    const rpc = createSolanaRpc(process.env.RPC_ENDPOINT_URL);
+    await setRpc(process.env.RPC_ENDPOINT_URL);
+    await setWhirlpoolsConfig("solanaDevnet");
+    const signer = await setPayerFromBytes(new Uint8Array(secret));
+    console.log('signer:', signer.address);
+
+    // 토큰 정의
+    // devToken specification
+    // https://everlastingsong.github.io/nebula/
+    const devSAMO = { mint: address("Jd4M8bfJG3sAkd82RsGWyEXoaBXQP7njFzBwEaCTuDa"), decimals: 9 };
+    const devUSDC = { mint: address("BRjpCHtyQLNCo8gqRUr8jtdAj5AjPYQaoqbvcZiHok1k"), decimals: 6 };
+
+    // devSAMO/devUSDC 풀 로드
+    const tickSpacing = 64;
+    const whirlpool = await fetchConcentratedLiquidityPool(
+        rpc,
+        devSAMO.mint,
+        devUSDC.mint,
+        tickSpacing
+    );
+
+    // 풀의 현재 가격 가져옴
+    assert(whirlpool.initialized, "whirlpool is not initialized");
+    console.log("price:", whirlpool.price);
+
+    // 가격 범위, 예치할 토큰 수량, 허용 슬리피지 설정
+    const lowerPrice = 0.005;
+    const upperPrice = 0.02;
+    const devSamoAmount = 10_000_000_000n;
+    const slippage = 100;  // 100 bps = 1%
+    console.log('lower & upper price::', lowerPrice, upperPrice);
+
+    // 예치 예상치 가져옴
+    // 트랜잭션 생성
+    const { quote, positionMint, callback: sendTx } = await openConcentratedPosition(
+        whirlpool.address,
+        {
+            tokenA: devSamoAmount,
+        },
+        lowerPrice,
+        upperPrice,
+        slippage,
+    );
+    // 트랜잭션 전파
+    const txHash = await sendTx();
+
+    console.log("Position mint:", positionMint);
+    console.log("Quote:");
+    console.log("  liquidity amount:", quote.liquidityDelta);
+    console.log("  estimated amount of devSAMO to supply without slippage:", Number(quote.tokenEstA) / 10 ** devSAMO.decimals);
+    console.log("  estimated amount of devUSDC to supply without slippage:", Number(quote.tokenEstB) / 10 ** devUSDC.decimals);
+    console.log("  amount of devSAMO to supply if slippage is fully applied:", Number(quote.tokenMaxA) / 10 ** devSAMO.decimals);
+    console.log("  amount of tokenB to supply if slippage is fully applied:", Number(quote.tokenMaxB) / 10 ** devUSDC.decimals);
+    console.log('TX hash:', txHash);
+}
+
+main().catch(e => console.error("error:", e));
+
