@@ -1,36 +1,35 @@
 import { buildAndSendTransaction, setRpc } from "@orca-so/tx-sender";
-import { setPayerFromBytes } from "@orca-so/whirlpools";
-
 import secret from "../../wallet.json";
 import dotenv from "dotenv";
-import { address } from "@solana/kit";
-import {findAssociatedTokenPda, getTransferCheckedInstruction, TOKEN_PROGRAM_ADDRESS} from "@solana-program/token";
+import { address, createKeyPairSignerFromBytes } from "@solana/kit";
+import { findAssociatedTokenPda, getTransferCheckedInstruction, TOKEN_PROGRAM_ADDRESS } from "@solana-program/token";
 
 dotenv.config();
 
 async function main() {
     // Initialize a connection to the RPC and read in private key
     await setRpc(process.env.RPC_ENDPOINT_URL);
-    const signer = await setPayerFromBytes(new Uint8Array(secret));
-    console.log("signer:", signer.address);
+    const wallet = await createKeyPairSignerFromBytes(new Uint8Array(secret));
+    console.log("wallet:", wallet.address);
 
     // devSAMO
     // https://everlastingsong.github.io/nebula/
     const tokenMint = address("Jd4M8bfJG3sAkd82RsGWyEXoaBXQP7njFzBwEaCTuDa"); // devSAMO
+    const tokenDecimals = 9;
+
+    // Destination wallet for the devSAMO
+    const destAddress = address("vQW71yo6X1FjTwt9gaWtHYeoGMu7W9ehSmNiib7oW5G");
 
     // Amount to send
-    const tokenAmount = BigInt(100_000_000); // 0.1 devSAMO
+    const amount = 1_000_000_000n; // 1 devSAMO
 
     // Obtain the associated token account from the source wallet
     const [srcTokenAccount] = await findAssociatedTokenPda({
-        owner: signer.address,
+        owner: wallet.address,
         mint: tokenMint,
         tokenProgram: TOKEN_PROGRAM_ADDRESS,
     });
     console.log("srcTokenAccount:", srcTokenAccount);
-
-    // Destination wallet for the devSAMO
-    const destAddress = address("vQW71yo6X1FjTwt9gaWtHYeoGMu7W9ehSmNiib7oW5G");
 
     // Obtain the associated token account for the destination wallet.
     const [destTokenAccount] = await findAssociatedTokenPda({
@@ -42,17 +41,17 @@ async function main() {
 
     // Create the instruction to send devSAMO
     const instruction = getTransferCheckedInstruction({
-        amount: tokenAmount,
+        amount: amount,
         mint: tokenMint,
         source: srcTokenAccount,
         destination: destTokenAccount,
-        decimals: 9,
-        authority: signer.address,
+        decimals: tokenDecimals,
+        authority: wallet.address,
     });
-    console.log("instruction:", instruction);
 
     // Send the transaction
-    const txHash = await buildAndSendTransaction([instruction], signer);
+    console.log("Sending the transaction using Orca's tx-sender...");
+    const txHash = await buildAndSendTransaction([instruction], wallet);
     console.log("txHash:", txHash);
 }
 

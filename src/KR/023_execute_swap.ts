@@ -12,7 +12,6 @@ async function main() {
     await setRpc(process.env.RPC_ENDPOINT_URL);
     const signer = await setPayerFromBytes(new Uint8Array(secret));
     await setWhirlpoolsConfig("solanaDevnet");
-
     console.log("signer:", signer.address);
 
     // 토큰 정의
@@ -30,7 +29,7 @@ async function main() {
     // Whirlpools은 데이터베이스에서 5개의 열로 구성된 복합 기본키처럼, 다음의 5가지 요소로 식별됨
     // 프로그램, Config, 첫 번째 토큰의 민트 주소, 두 번째 토큰의 민트 주소, 그리고 틱 간격
     const tickSpacing = 64;
-    const whirlpoolPda = await getWhirlpoolAddress(
+    const [whirlpoolPda] = await getWhirlpoolAddress(
         whirlpoolConfigAddress,
         devSAMO.mint,
         devUSDC.mint,
@@ -42,23 +41,28 @@ async function main() {
     const amountIn = BigInt(100_000);
 
     // 스왑 예상치 획득(시뮬레이션 실행)
-    const { instructions, quote, callback: executeSwap } = await swap(
+    const { quote, callback: sendTx } = await swap(
         // 입력할 토큰 및 수량
         {
             mint: devUSDC.mint,
             inputAmount: amountIn,   // swap 0.1 devUSDC to devSAMO
         },
-        whirlpoolPda[0],
+        whirlpoolPda,
         // 허용 슬리피지 (100bps = 1%)
         100,  // 100 bps = 1%
     );
 
     // 예상 결과 출력
-    console.log("instructions:", instructions);
-    console.log("quote:", quote);
+    console.log("Quote:");
+    console.log("  - Amount of tokens to pay:", quote.tokenIn);
+    console.log("  - Minimum amount of tokens to receive with maximum slippage:", quote.tokenMinOut);
+    console.log("  - Estimated tokens to receive:");
+    console.log("      Based on the price at the time of the quote");
+    console.log("      Without slippage consideration:", quote.tokenEstOut);
+    console.log("  - Trade fee (bps):", quote.tradeFee);
 
     // 액션을 이용하여 트랜잭션 전파
-    const swapSignature = await executeSwap();
+    const swapSignature = await sendTx();
     console.log("swapSignature:", swapSignature);
 }
 

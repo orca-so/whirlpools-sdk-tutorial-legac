@@ -1,4 +1,4 @@
-import { setPayerFromBytes, setPriorityFeeSetting, setRpc, setWhirlpoolsConfig, swap } from "@orca-so/whirlpools";
+import { setJitoFeePercentile, setJitoTipSetting, setPayerFromBytes, setPriorityFeePercentile, setPriorityFeeSetting, setRpc, setWhirlpoolsConfig, swap } from "@orca-so/whirlpools";
 import { address } from "@solana/kit";
 import { getWhirlpoolAddress } from "@orca-so/whirlpools-client";
 
@@ -49,11 +49,21 @@ async function main() {
     );
     console.log("whirlpoolPda:", whirlpoolPda);
 
-    // NOTE: Set priority fee, maximum priority fee is 0.005 SOL
+    // NOTE: Set priority fee
+    // https://dev.orca.so/SDKs/Send%20Transaction#priority-fee-configuration
     setPriorityFeeSetting({
         type: "dynamic",
         maxCapLamports: BigInt(5_000_000), // Max priority fee = 0.005 SOL
     });
+    setPriorityFeePercentile("50")
+
+    // Set Jito tip - available on Solana Mainnet only!
+    // https://dev.orca.so/SDKs/Send%20Transaction#jito-tip-configuration
+    // setJitoTipSetting({
+    //     type: "dynamic",
+    //     maxCapLamports: BigInt(3_000_000), // Max priority fee = 0.005 SOL
+    // });
+    // setJitoFeePercentile("50ema")
 
     //LANG:JP 1 devUSDC トークンを devSAMO にスワップします
     //LANG:EN Swap 1 devUSDC for devSAMO
@@ -79,10 +89,15 @@ async function main() {
     );
 
     //LANG:JP 見積もり結果表示
-    //LANG:EN Output the estimation
+    //LANG:EN Output the quote
     //LANG:KR 예상 결과 출력
-    console.log("instructions:", instructions);
-    console.log("quote:", quote);
+    console.log("Quote:");
+    console.log("  - Amount of tokens to pay:", quote.tokenIn);
+    console.log("  - Minimum amount of tokens to receive with maximum slippage:", quote.tokenMinOut);
+    console.log("  - Estimated tokens to receive:");
+    console.log("      Based on the price at the time of the quote");
+    console.log("      Without slippage consideration:", quote.tokenEstOut);
+    console.log("  - Trade fee (bps):", quote.tradeFee);
 
     //LANG:JP トランザクションを送信
     //LANG:EN Send the transaction using action

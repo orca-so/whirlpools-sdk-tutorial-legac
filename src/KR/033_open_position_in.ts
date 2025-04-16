@@ -1,10 +1,11 @@
-import { increasePosLiquidity, openPositionInstructions, setJitoTipSetting, setPayerFromBytes, setPriorityFeeSetting, setRpc, setWhirlpoolsConfig } from "@orca-so/whirlpools";
+import { fetchConcentratedLiquidityPool, increasePosLiquidity, openConcentratedPosition, openPositionInstructions, setJitoTipSetting, setPayerFromBytes, setPriorityFeeSetting, setRpc, setWhirlpoolsConfig } from "@orca-so/whirlpools";
 import { fetchWhirlpool, getWhirlpoolAddress } from "@orca-so/whirlpools-client";
 import { priceToTickIndex, sqrtPriceToPrice, tickIndexToPrice } from "@orca-so/whirlpools-core";
 import { address, createSolanaRpc } from "@solana/kit";
 
 import dotenv from "dotenv";
 import secret from "../../wallet.json";
+import assert from "assert";
 
 dotenv.config();
 
@@ -22,69 +23,48 @@ async function main() {
     const devSAMO = { mint: address("Jd4M8bfJG3sAkd82RsGWyEXoaBXQP7njFzBwEaCTuDa"), decimals: 9 };
     const devUSDC = { mint: address("BRjpCHtyQLNCo8gqRUr8jtdAj5AjPYQaoqbvcZiHok1k"), decimals: 6 };
 
-    // WhirlpoolsConfig 계정
-    // devToken ecosystem / Orca Whirlpools
-    const DEVNET_WHIRLPOOLS_CONFIG = address("FcrweFY1G9HJAHG5inkGB6pKg1HZ6x9UC2WioAfWrGkR");
-    const whirlpoolConfigAddress = address(DEVNET_WHIRLPOOLS_CONFIG.toString());
-
-    // devSAMO/devUSDC 풀 가져오기
-    const tickSpacing = 64;
-    const whirlpoolPda = await getWhirlpoolAddress(
-        whirlpoolConfigAddress,
+    // devSAMO/devUSDC 풀 로드
+    const tickSpacing = 1;
+    const whirlpool = await fetchConcentratedLiquidityPool(
+        rpc,
         devSAMO.mint,
         devUSDC.mint,
-        tickSpacing,
+        tickSpacing
     );
-    console.log("whirlpoolPda:", whirlpoolPda);
 
-    const whirlpool = await fetchWhirlpool(rpc, whirlpoolPda[0]);
-    console.log("whirlpool:", whirlpool);
-
-    // 풀의 현재 가격 조회
-    const sqrtPrice_x64 = sqrtPriceToPrice(whirlpool.data.sqrtPrice, devSAMO.decimals, devUSDC.decimals);
-    console.log("sqrtPrice_x64:", sqrtPrice_x64);
+    // 풀의 현재 가격 가져옴
+    assert(whirlpool.initialized, "whirlpool is not initialized");
+    console.log("price:", whirlpool.price);
 
     // 가격 범위, 예치할 토큰 수량, 허용 슬리피지 설정
     const lowerPrice = 0.005;
     const upperPrice = 0.02;
-    const devUsdcAmount = BigInt(1_000_000);
+    const devUsdcAmount = 1_000_000n;
     const slippage = 100;  // 100 bps = 1%
-
-    // 가격 범위 조정 (모든 가격 설정 불가, InitializableTickIndex에 해당하는 가격만 사용 가능)
-    const lowerTickIndex = priceToTickIndex(lowerPrice, devSAMO.decimals, devUSDC.decimals);
-    const upperTickIndex = priceToTickIndex(upperPrice, devSAMO.decimals, devUSDC.decimals);
-    console.log('lowerTickIndex:', lowerTickIndex);
-    console.log('upperTickIndex:', upperTickIndex);
+    console.log('lower & upper price::', lowerPrice, upperPrice);
 
     // 예치 예상치 가져옴
-    const { quote, instructions, positionMint } = await openPositionInstructions(
-        rpc, 
-        whirlpool.address, 
+    // 트랜잭션 생성
+    const { quote, positionMint, callback: sendTx } = await openConcentratedPosition(
+        whirlpool.address,
         {
             tokenB: devUsdcAmount,
         },
-        lowerPrice, 
-        upperPrice, 
+        lowerPrice,
+        upperPrice,
         slippage,
-        signer
     );
-    console.log("quote:", quote);
-    console.log("openPositionInbstructions:", instructions);
-    console.log("positionMint:", positionMint);
-
-    // 트랜잭션 생성
-    const { instructions: increaseLiquidityInstructions, callback: executeIncreaseLiquidity } = await increasePosLiquidity(
-        positionMint, 
-        {
-            tokenB: quote.tokenMaxB,
-        }, 
-        100,  // 100 bps = 1%
-    );
-    console.log("increaseLiquidityInstructions:", increaseLiquidityInstructions);
-
     // 트랜잭션 전파
-    const txHash = await executeIncreaseLiquidity();
-    console.log('txHash:', txHash);
+    const txHash = await sendTx();
+
+    console.log("Position mint:", positionMint);
+    console.log("Quote:");
+    console.log("  liquidity amount:", quote.liquidityDelta);
+    console.log("  estimated amount of devSAMO to supply without slippage:", Number(quote.tokenEstA) / 10 ** devSAMO.decimals);
+    console.log("  estimated amount of devUSDC to supply without slippage:", Number(quote.tokenEstB) / 10 ** devUSDC.decimals);
+    console.log("  amount of devSAMO to supply if slippage is fully applied:", Number(quote.tokenMaxA) / 10 ** devSAMO.decimals);
+    console.log("  amount of tokenB to supply if slippage is fully applied:", Number(quote.tokenMaxB) / 10 ** devUSDC.decimals);
+    console.log('TX hash:', txHash);
 }
 
 main().catch(e => console.error("error:", e));

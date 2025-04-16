@@ -1,4 +1,4 @@
-import { setPayerFromBytes, setPriorityFeeSetting, setRpc, setWhirlpoolsConfig, swap } from "@orca-so/whirlpools";
+import { setJitoFeePercentile, setJitoTipSetting, setPayerFromBytes, setPriorityFeePercentile, setPriorityFeeSetting, setRpc, setWhirlpoolsConfig, swap } from "@orca-so/whirlpools";
 import { address } from "@solana/kit";
 import { getWhirlpoolAddress } from "@orca-so/whirlpools-client";
 
@@ -37,11 +37,21 @@ async function main() {
     );
     console.log("whirlpoolPda:", whirlpoolPda);
 
-    // NOTE: Set priority fee, maximum priority fee is 0.005 SOL
+    // NOTE: Set priority fee
+    // https://dev.orca.so/SDKs/Send%20Transaction#priority-fee-configuration
     setPriorityFeeSetting({
         type: "dynamic",
         maxCapLamports: BigInt(5_000_000), // Max priority fee = 0.005 SOL
     });
+    setPriorityFeePercentile("50")
+
+    // Set Jito tip - available on Solana Mainnet only!
+    // https://dev.orca.so/SDKs/Send%20Transaction#jito-tip-configuration
+    // setJitoTipSetting({
+    //     type: "dynamic",
+    //     maxCapLamports: BigInt(3_000_000), // Max priority fee = 0.005 SOL
+    // });
+    // setJitoFeePercentile("50ema")
 
     // 1 devUSDC トークンを devSAMO にスワップします
     const amountIn = BigInt(100_000);
@@ -59,8 +69,13 @@ async function main() {
     );
 
     // 見積もり結果表示
-    console.log("instructions:", instructions);
-    console.log("quote:", quote);
+    console.log("Quote:");
+    console.log("  - Amount of tokens to pay:", quote.tokenIn);
+    console.log("  - Minimum amount of tokens to receive with maximum slippage:", quote.tokenMinOut);
+    console.log("  - Estimated tokens to receive:");
+    console.log("      Based on the price at the time of the quote");
+    console.log("      Without slippage consideration:", quote.tokenEstOut);
+    console.log("  - Trade fee (bps):", quote.tradeFee);
 
     // トランザクションを送信
     const swapSignature = await executeSwap();

@@ -12,7 +12,6 @@ async function main() {
     await setRpc(process.env.RPC_ENDPOINT_URL);
     const signer = await setPayerFromBytes(new Uint8Array(secret));
     await setWhirlpoolsConfig("solanaDevnet");
-
     console.log("signer:", signer.address);
 
     // Token definition
@@ -30,7 +29,7 @@ async function main() {
     // Whirlpools are identified by 5 elements (Program, Config, mint address of the 1st token,
     // mint address of the 2nd token, tick spacing), similar to the 5 column compound primary key in DB
     const tickSpacing = 64;
-    const whirlpoolPda = await getWhirlpoolAddress(
+    const [whirlpoolPda] = await getWhirlpoolAddress(
         whirlpoolConfigAddress,
         devSAMO.mint,
         devUSDC.mint,
@@ -42,23 +41,28 @@ async function main() {
     const amountIn = BigInt(100_000);
 
     // Obtain swap estimation (run simulation)
-    const { instructions, quote, callback: executeSwap } = await swap(
+    const { quote, callback: sendTx } = await swap(
         // Input token and amount
         {
             mint: devUSDC.mint,
             inputAmount: amountIn,   // swap 0.1 devUSDC to devSAMO
         },
-        whirlpoolPda[0],
+        whirlpoolPda,
         // Acceptable slippage (100bps = 1%)
         100,  // 100 bps = 1%
     );
 
-    // Output the estimation
-    console.log("instructions:", instructions);
-    console.log("quote:", quote);
+    // Output the quote
+    console.log("Quote:");
+    console.log("  - Amount of tokens to pay:", quote.tokenIn);
+    console.log("  - Minimum amount of tokens to receive with maximum slippage:", quote.tokenMinOut);
+    console.log("  - Estimated tokens to receive:");
+    console.log("      Based on the price at the time of the quote");
+    console.log("      Without slippage consideration:", quote.tokenEstOut);
+    console.log("  - Trade fee (bps):", quote.tradeFee);
 
     // Send the transaction using action
-    const swapSignature = await executeSwap();
+    const swapSignature = await sendTx();
     console.log("swapSignature:", swapSignature);
 }
 

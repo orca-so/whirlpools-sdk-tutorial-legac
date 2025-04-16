@@ -12,7 +12,6 @@ async function main() {
     await setRpc(process.env.RPC_ENDPOINT_URL);
     const signer = await setPayerFromBytes(new Uint8Array(secret));
     await setWhirlpoolsConfig("solanaDevnet");
-
     console.log("signer:", signer.address);
 
     // トークン定義
@@ -30,7 +29,7 @@ async function main() {
     // Whirlpool のプールは (プログラム, Config, 1個目のトークンのミントアドレス, 2個目のトークンのミントアドレス, ティックスペース)
     // の 5 要素で特定されます (DBで考えると5列の複合プライマリキーです)
     const tickSpacing = 64;
-    const whirlpoolPda = await getWhirlpoolAddress(
+    const [whirlpoolPda] = await getWhirlpoolAddress(
         whirlpoolConfigAddress,
         devSAMO.mint,
         devUSDC.mint,
@@ -42,23 +41,28 @@ async function main() {
     const amountIn = BigInt(100_000);
 
     // スワップの見積もり取得(シミュレーション実行)
-    const { instructions, quote, callback: executeSwap } = await swap(
+    const { quote, callback: sendTx } = await swap(
         // 入力するトークン
         {
             mint: devUSDC.mint,
             inputAmount: amountIn,   // swap 0.1 devUSDC to devSAMO
         },
-        whirlpoolPda[0],
+        whirlpoolPda,
         // 許容するスリッページ (100bps = 1%)
         100,  // 100 bps = 1%
     );
 
     // 見積もり結果表示
-    console.log("instructions:", instructions);
-    console.log("quote:", quote);
+    console.log("Quote:");
+    console.log("  - Amount of tokens to pay:", quote.tokenIn);
+    console.log("  - Minimum amount of tokens to receive with maximum slippage:", quote.tokenMinOut);
+    console.log("  - Estimated tokens to receive:");
+    console.log("      Based on the price at the time of the quote");
+    console.log("      Without slippage consideration:", quote.tokenEstOut);
+    console.log("  - Trade fee (bps):", quote.tradeFee);
 
     // トランザクションを送信
-    const swapSignature = await executeSwap();
+    const swapSignature = await sendTx();
     console.log("swapSignature:", swapSignature);
 }
 

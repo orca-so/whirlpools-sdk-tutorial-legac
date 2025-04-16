@@ -1,23 +1,22 @@
-import { Address, address, createKeyPairSignerFromBytes, createSolanaRpc, generateKeyPairSigner, getAddressEncoder, KeyPairSigner, Rpc, SolanaRpcApi } from "@solana/kit";
+import { Address, createKeyPairSignerFromBytes, createSolanaRpc, generateKeyPairSigner, getAddressEncoder, KeyPairSigner, Rpc, SolanaRpcApi } from "@solana/kit";
 import secret from "../../wallet.json";
-import { fetchMint, getInitializeMint2Instruction } from "@solana-program/token";
-import { createConcentratedLiquidityPool } from "@orca-so/whirlpools";
+import { fetchMint, getInitializeMint2Instruction, TOKEN_PROGRAM_ADDRESS } from "@solana-program/token";
+import { createConcentratedLiquidityPool, setWhirlpoolsConfig, setRpc as setRpcActions, setPayerFromBytes } from "@orca-so/whirlpools";
 import { fetchWhirlpool } from "@orca-so/whirlpools-client";
 import { sqrtPriceToPrice } from "@orca-so/whirlpools-core";
 import { getCreateAccountInstruction } from "@solana-program/system";
-import { buildAndSendTransaction } from "@orca-so/tx-sender";
+import { buildAndSendTransaction, setRpc } from "@orca-so/tx-sender";
+import dotenv from "dotenv";
 
-// This function is implemented in token.ts in the @orca/whirlpools package
-function orderMints(mintA: Address, mintB: Address) {
-    const encoder = getAddressEncoder();
-    const mint1Bytes = new Uint8Array(encoder.encode(mintA));
-    const mint2Bytes = new Uint8Array(encoder.encode(mintB));
-    return Buffer.compare(mint1Bytes, mint2Bytes) < 0 ? [mintA, mintB] : [mintB, mintA];
-}
+dotenv.config();
 
 async function main() {
     // Initialize a connection to the RPC and read in private key
     const rpc = createSolanaRpc(process.env.RPC_ENDPOINT_URL);
+    await setRpc(process.env.RPC_ENDPOINT_URL);
+    await setRpcActions(process.env.RPC_ENDPOINT_URL);
+    await setPayerFromBytes(new Uint8Array(secret));
+    await setWhirlpoolsConfig("solanaDevnet");
     const signer = await createKeyPairSignerFromBytes(new Uint8Array(secret));
     console.log('wallet address:', signer.address);
 
@@ -46,21 +45,18 @@ async function main() {
     const initialPrice = 0.01;
 
     // Create a new pool
-    const { instructions, poolAddress, callback: executeCreateConcentratedLiquidityPool } = await createConcentratedLiquidityPool(
-        tokenAddressA, 
-        tokenAddressB, 
+    const { instructions, poolAddress, callback: sendTx } = await createConcentratedLiquidityPool(
+        tokenAddressA,
+        tokenAddressB,
         tickSpacing,
         initialPrice
     );
-    console.log("instructions:", instructions);
 
-    const signature = await executeCreateConcentratedLiquidityPool();
+    const signature = await sendTx();
     console.log("createPoolTxId:", signature);
 
     // Fetch pool data to verify the initial price and tick
     const pool = await fetchWhirlpool(rpc, poolAddress);
-    console.log("pool:", pool);
-    
     const poolData = pool.data;
     const poolInitialPrice = sqrtPriceToPrice(poolData.sqrtPrice, decimalA, decimalB);
     const poolInitialTick = poolData.tickCurrentIndex;
@@ -76,9 +72,9 @@ async function main() {
 }
 
 async function createNewTokenMint(
-    rpc: Rpc<SolanaRpcApi>, 
-    signer: KeyPairSigner, 
-    mintAuthority: Address, 
+    rpc: Rpc<SolanaRpcApi>,
+    signer: KeyPairSigner,
+    mintAuthority: Address,
     freezeAuthority: Address,
     decimals: number) {
     const keypair = await generateKeyPairSigner();
@@ -89,7 +85,7 @@ async function createNewTokenMint(
         newAccount: keypair,
         lamports,
         space: mintLen,
-        programAddress: keypair.address,
+        programAddress: TOKEN_PROGRAM_ADDRESS,
     });
 
     const initializeMintInstruction = getInitializeMint2Instruction({
@@ -99,10 +95,17 @@ async function createNewTokenMint(
         freezeAuthority,
     });
 
-    const txHash = await buildAndSendTransaction([createAccountInstruction, initializeMintInstruction], signer);
-    console.log("createNewTokenMint txHash:", txHash);
+    await buildAndSendTransaction([createAccountInstruction, initializeMintInstruction], signer);
 
     return keypair.address;
+}
+
+// This function is implemented in token.ts in the @orca/whirlpools package
+function orderMints(mintA: Address, mintB: Address) {
+    const encoder = getAddressEncoder();
+    const mint1Bytes = new Uint8Array(encoder.encode(mintA));
+    const mint2Bytes = new Uint8Array(encoder.encode(mintB));
+    return Buffer.compare(mint1Bytes, mint2Bytes) < 0 ? [mintA, mintB] : [mintB, mintA];
 }
 
 main().catch((e) => console.error("error:", e));
